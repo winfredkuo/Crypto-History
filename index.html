@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>加密貨幣批次追蹤</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --bg2: #ffffff;
+  --bg3: #f0f1f4;
+  --border: #e2e4ea;
+  --border2: #c8cbd6;
+  --text: #1a1c22;
+  --text2: #555a6e;
+  --text3: #9096aa;
+  --accent: #2563eb;
+  --accent-bg: #eff6ff;
+  --green: #16a34a;
+  --green-bg: #f0fdf4;
+  --green-border: #bbf7d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --amber: #d97706;
+  --amber-bg: #fffbeb;
+  --amber-border: #fde68a;
+  --purple: #7c3aed;
+  --purple-bg: #f5f3ff;
+  --purple-border: #ddd6fe;
+  --teal: #0d9488;
+  --teal-bg: #f0fdfa;
+  --teal-border: #99f6e4;
+  --sans: 'Noto Sans TC', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+.layout { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem; }
+
+/* Header */
+header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.75rem; flex-wrap: wrap; gap: 12px; }
+.logo h1 { font-family: var(--sans); font-size: 18px; font-weight: 500; color: var(--text); }
+.logo p { font-size: 13px; color: var(--text3); margin-top: 1px; }
+.conn { display: flex; align-items: center; gap: 10px; }
+.conn-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+.conn-dot.ok { background: var(--green); }
+.conn-dot.err { background: var(--red); }
+.conn-label { font-size: 13px; color: var(--text2); }
+.btn-refresh { background: var(--bg2); border: 1px solid var(--border2); color: var(--text2); font-family: var(--sans); font-size: 13px; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+.btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 1.75rem; }
+.stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.stat-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.stat-coin-badge { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 99px; }
+.stat-coin-badge.eth { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.stat-coin-badge.sol { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-border); }
+.stat-cur { font-size: 13px; color: var(--text3); }
+.stat-holding { font-size: 26px; font-weight: 500; font-family: var(--mono); margin-bottom: 10px; color: var(--accent); }
+.stat-holding .unit { font-size: 14px; color: var(--text2); margin-left: 4px; font-weight: 400; }
+.stat-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text2); padding: 3px 0; }
+.stat-row .val { font-family: var(--mono); color: var(--text); font-size: 13px; }
+.pnl-pos { color: var(--green); font-weight: 500; }
+.pnl-neg { color: var(--red); font-weight: 500; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; border-bottom: 1.5px solid var(--border); }
+.tab { font-size: 14px; padding: 8px 18px; cursor: pointer; color: var(--text3); background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -1.5px; font-family: var(--sans); font-weight: 500; }
+.tab:hover { color: var(--text2); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Form */
+.form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 1.5rem; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 12px; font-weight: 500; color: var(--text2); }
+input, select { background: var(--bg); border: 1px solid var(--border2); color: var(--text); font-family: var(--sans); font-size: 14px; padding: 8px 12px; border-radius: 6px; width: 100%; }
+input:focus, select:focus { outline: none; border-color: var(--accent); background: var(--bg2); }
+input::placeholder { color: var(--text3); }
+.form-actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.form-actions .fg { flex: 1; min-width: 160px; max-width: 300px; }
+
+.btn { font-family: var(--sans); font-size: 14px; padding: 8px 18px; border-radius: 6px; cursor: pointer; border: 1px solid var(--border2); background: var(--bg2); color: var(--text2); font-weight: 500; }
+.btn:hover { color: var(--text); border-color: var(--text2); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-sell { background: var(--bg2); border: 1px solid var(--green); color: var(--green); font-size: 14px; padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 500; font-family: var(--sans); }
+.btn-sell:hover { background: var(--green-bg); }
+.btn-del { background: transparent; border: none; color: var(--text3); font-size: 13px; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.btn-del:hover { color: var(--red); background: var(--red-bg); }
+
+.err { font-size: 13px; color: var(--red); min-height: 18px; margin-top: 6px; }
+
+/* Section */
+.section { margin-bottom: 2rem; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.section-title { font-size: 13px; font-weight: 500; color: var(--text2); letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* Table */
+.table-wrap { overflow-x: auto; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1px solid var(--border); }
+th { font-size: 12px; font-weight: 500; color: var(--text3); padding: 10px 14px; text-align: left; white-space: nowrap; letter-spacing: 0.03em; }
+tbody tr { border-bottom: 1px solid var(--border); }
+tbody tr:hover { background: var(--bg); }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 12px 14px; font-size: 14px; vertical-align: middle; }
+td.mono { font-family: var(--mono); font-size: 13px; }
+td.muted { color: var(--text2); }
+td.dim { color: var(--text3); font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; font-weight: 500; display: inline-block; white-space: nowrap; }
+.b-eth { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.b-sol { background: var(--teal-bg); color: var(--teal); border: 1px solid var(--teal-border); }
+.b-open { background: var(--accent-bg); color: var(--accent); border: 1px solid #bfdbfe; }
+.b-partial { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+.b-closed { background: var(--bg3); color: var(--text3); border: 1px solid var(--border); }
+
+.progress-wrap { background: var(--bg3); border-radius: 99px; height: 5px; min-width: 56px; }
+.progress-bar { height: 5px; border-radius: 99px; background: var(--accent); }
+.progress-row { display: flex; align-items: center; gap: 8px; }
+.zero-cost { color: var(--green); font-size: 13px; font-weight: 500; }
+.zero-cost::before { content: '✓ '; }
+
+.empty { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 14px; }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; max-width: 480px; width: 94%; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+.modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+.lot-list { max-height: 210px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1rem; }
+.lot-item { padding: 11px 14px; cursor: pointer; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.lot-item:last-child { border-bottom: none; }
+.lot-item:hover { background: var(--bg); }
+.lot-item.selected { background: var(--accent-bg); }
+.lot-item-left { display: flex; align-items: center; gap: 8px; }
+.lot-item-date { font-size: 14px; font-weight: 500; }
+.lot-item-price { font-size: 13px; color: var(--text3); font-family: var(--mono); }
+.lot-item-rem { font-size: 13px; color: var(--text2); font-family: var(--mono); }
+.modal-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1rem; }
+
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--text); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 8px; z-index: 200; opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok { background: var(--green); }
+.toast.fail { background: var(--red); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <div class="logo">
+      <h1>加密貨幣批次追蹤</h1>
+      <p>ETH / SOL 幣本位損益管理</p>
+    </div>
+    <div class="conn">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span class="conn-label" id="conn-label">連線中…</span>
+      <button class="btn-refresh" onclick="loadAll()">↻ 重新整理</button>
+    </div>
+  </header>
+
+  <div class="stats-grid" id="stats-grid"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('all',this)">全部</button>
+    <button class="tab" onclick="switchTab('ETH',this)">ETH</button>
+    <button class="tab" onclick="switchTab('SOL',this)">SOL</button>
+  </div>
+
+  <div class="form-card">
+    <div class="section-title" style="margin-bottom:14px">新增買入批次</div>
+    <div class="form-grid">
+      <div class="fg"><label>日期</label><input type="date" id="b-date"></div>
+      <div class="fg"><label>幣種</label><select id="b-coin"><option>ETH</option><option>SOL</option></select></div>
+      <div class="fg"><label>買入數量</label><input type="number" id="b-qty" placeholder="0.0000" step="any" min="0"></div>
+      <div class="fg"><label>幣別</label><select id="b-cur"><option>TWD</option><option>USD</option></select></div>
+      <div class="fg"><label>買入單價</label><input type="number" id="b-price" placeholder="0.00" step="any" min="0"></div>
+      <div class="fg"><label>手續費</label><input type="number" id="b-fee" placeholder="0" value="0" step="any" min="0"></div>
+    </div>
+    <div class="form-actions">
+      <div class="fg"><label>備註</label><input type="text" id="b-note" placeholder="選填"></div>
+      <button class="btn btn-primary" onclick="addLot()" style="white-space:nowrap;height:40px">＋ 新增批次</button>
+    </div>
+    <div class="err" id="b-err"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">買入批次</span>
+      <button class="btn-sell" onclick="showSellModal()">記錄賣出</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>日期</th><th>幣種</th><th>買入量</th><th>單價</th><th>幣別</th>
+          <th>總成本</th><th>已賣出</th><th>剩餘持倉</th><th>已回收</th><th>底倉成本</th><th>狀態</th><th>備註</th><th></th>
+        </tr></thead>
+        <tbody id="lots-tbody"></tbody>
+      </table>
+      <div class="empty" id="lots-empty" style="display:none">尚無買入批次，請新增第一筆。</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-title">賣出紀錄</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>日期</th><th>對應批次</th><th>幣種</th><th>賣出量</th><th>賣出價</th><th>幣別</th><th>手續費</th><th>回收金額</th><th>損益</th><th>備註</th><th></th>
+        </tr></thead>
+        <tbody id="sells-tbody"></tbody>
+      </table>
+      <div class="empty" id="sells-empty" style="display:none">尚無賣出紀錄。</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sell Modal -->
+<div class="modal-bg" id="sell-modal" style="display:none">
+  <div class="modal">
+    <h3>記錄賣出</h3>
+    <div class="section-title" style="margin-bottom:8px">選擇對應批次</div>
+    <div class="lot-list" id="lot-list"></div>
+    <hr class="modal-divider">
+    <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(115px,1fr))">
+      <div class="fg"><label>日期</label><input type="date" id="s-date"></div>
+      <div class="fg"><label>賣出數量</label><input type="number" id="s-qty" placeholder="0.0000" step="any"></div>
+      <div class="fg"><label>賣出單價</label><input type="number" id="s-price" placeholder="0.00" step="any"></div>
+      <div class="fg"><label>手續費</label><input type="number" id="s-fee" placeholder="0" value="0" step="any"></div>
+    </div>
+    <div class="fg" style="margin-top:10px"><label>備註</label><input type="text" id="s-note" placeholder="選填"></div>
+    <div class="err" id="s-err"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('sell-modal').style.display='none'">取消</button>
+      <button class="btn btn-primary" onclick="addSell()">確認賣出</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://shiohnnslexnogxotmvf.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoaW9obm5zbGV4bm9neG90bXZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2MzQ5OTIsImV4cCI6MjA5MTIxMDk5Mn0.d1PsjpVtM9kiOCIg_MdZnCISQ4Vg-WGBzmq-CwATc2A';
+const H = { 'Content-Type':'application/json', 'apikey':SB_KEY, 'Authorization':'Bearer '+SB_KEY, 'Prefer':'return=representation' };
+
+let lots=[], sells=[], tab='all', selLotId=null;
+document.getElementById('b-date').value = new Date().toISOString().slice(0,10);
+
+function toast(msg, type='ok') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show '+(type||'');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',2200);
+}
+function fmt(n,d=2){ return isNaN(+n)?'—':(+n).toLocaleString('zh-TW',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function sym(c){ return c==='USD'?'$':'NT$'; }
+
+async function sb(method, table, body, filter=''){
+  const url=`${SB_URL}/rest/v1/${table}${filter}`;
+  const opts={method, headers:{...H}};
+  if(method==='GET'||method==='DELETE') delete opts.headers['Prefer'];
+  if(body) opts.body=JSON.stringify(body);
+  const r=await fetch(url,opts);
+  if(!r.ok){ const e=await r.text(); throw new Error(e); }
+  if(method==='DELETE') return;
+  return r.json();
+}
+
+function setConn(state){
+  const dot=document.getElementById('conn-dot');
+  const lbl=document.getElementById('conn-label');
+  dot.className='conn-dot '+state;
+  lbl.textContent=state==='ok'?'已連線 Supabase':state==='err'?'連線失敗':'連線中…';
+}
+
+async function loadAll(){
+  setConn('loading');
+  try {
+    [lots,sells]=await Promise.all([
+      sb('GET','lots','','?order=date.desc'),
+      sb('GET','sells','','?order=date.desc')
+    ]);
+    setConn('ok'); renderAll();
+  } catch(e){ setConn('err'); toast('連線失敗：'+e.message,'fail'); }
+}
+
+async function addLot(){
+  const err=document.getElementById('b-err');
+  const date=document.getElementById('b-date').value;
+  const coin=document.getElementById('b-coin').value;
+  const qty=parseFloat(document.getElementById('b-qty').value);
+  const currency=document.getElementById('b-cur').value;
+  const price=parseFloat(document.getElementById('b-price').value);
+  const fee=parseFloat(document.getElementById('b-fee').value)||0;
+  const note=document.getElementById('b-note').value.trim();
+  if(!date){err.textContent='請填寫日期';return;}
+  if(!qty||qty<=0){err.textContent='請填寫有效數量';return;}
+  if(!price||price<=0){err.textContent='請填寫有效單價';return;}
+  err.textContent='';
+  try {
+    toast('儲存中…','');
+    const res=await sb('POST','lots',{id:Date.now(),date,coin,qty,currency,price,fee,note});
+    lots=[res[0],...lots].sort((a,b)=>b.date.localeCompare(a.date));
+    ['b-qty','b-price','b-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('b-fee').value='0';
+    toast('✓ 批次已儲存');
+    renderAll();
+  } catch(e){ err.textContent='儲存失敗：'+e.message; }
+}
+
+async function deleteLot(id){
+  if(!confirm('確認刪除此批次？相關賣出記錄也會一併刪除。')) return;
+  try {
+    const rel=sells.filter(s=>s.lot_id===id);
+    await Promise.all(rel.map(s=>sb('DELETE','sells','',`?id=eq.${s.id}`)));
+    await sb('DELETE','lots','',`?id=eq.${id}`);
+    lots=lots.filter(l=>l.id!==id);
+    sells=sells.filter(s=>s.lot_id!==id);
+    toast('✓ 已刪除'); renderAll();
+  } catch(e){ toast('刪除失敗','fail'); }
+}
+
+async function deleteSell(id){
+  if(!confirm('確認刪除此賣出記錄？')) return;
+  try {
+    await sb('DELETE','sells','',`?id=eq.${id}`);
+    sells=sells.filter(s=>s.id!==id);
+    toast('✓ 已刪除'); renderAll();
+  } catch(e){ toast('刪除失敗','fail'); }
+}
+
+function showSellModal(){
+  selLotId=null;
+  document.getElementById('s-date').value=new Date().toISOString().slice(0,10);
+  ['s-qty','s-price','s-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('s-fee').value='0';
+  document.getElementById('s-err').textContent='';
+  const vis=lots.filter(l=>tab==='all'||l.coin===tab).filter(l=>lotRem(l)>0.000001);
+  const lst=document.getElementById('lot-list');
+  lst.innerHTML=!vis.length
+    ?'<div style="padding:14px;font-size:14px;color:var(--text3)">沒有可賣出的批次</div>'
+    :vis.map(l=>`<div class="lot-item" data-id="${l.id}" onclick="selLot(${l.id},this)">
+        <div class="lot-item-left">
+          <span class="badge b-${l.coin.toLowerCase()}">${l.coin}</span>
+          <span class="lot-item-date">${l.date}</span>
+          <span class="lot-item-price">${sym(l.currency)}${fmt(l.price)}</span>
+        </div>
+        <span class="lot-item-rem">剩 ${fmt(lotRem(l),4)}</span>
+      </div>`).join('');
+  document.getElementById('sell-modal').style.display='flex';
+}
+
+function selLot(id,el){
+  selLotId=id;
+  document.querySelectorAll('.lot-item').forEach(e=>e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function addSell(){
+  const err=document.getElementById('s-err');
+  if(!selLotId){err.textContent='請選擇對應批次';return;}
+  const lot=lots.find(l=>l.id===selLotId);
+  if(!lot){err.textContent='批次不存在';return;}
+  const date=document.getElementById('s-date').value;
+  const qty=parseFloat(document.getElementById('s-qty').value);
+  const price=parseFloat(document.getElementById('s-price').value);
+  const fee=parseFloat(document.getElementById('s-fee').value)||0;
+  const note=document.getElementById('s-note').value.trim();
+  if(!date){err.textContent='請填寫日期';return;}
+  if(!qty||qty<=0){err.textContent='請填寫有效數量';return;}
+  if(!price||price<=0){err.textContent='請填寫有效單價';return;}
+  const rem=lotRem(lot);
+  if(qty>rem+0.000001){err.textContent=`超過剩餘持倉 ${fmt(rem,4)} ${lot.coin}`;return;}
+  err.textContent='';
+  try {
+    toast('儲存中…','');
+    const res=await sb('POST','sells',{id:Date.now(),lot_id:selLotId,date,qty,price,fee,note,currency:lot.currency,coin:lot.coin});
+    sells=[res[0],...sells].sort((a,b)=>b.date.localeCompare(a.date));
+    toast('✓ 賣出已記錄');
+    document.getElementById('sell-modal').style.display='none';
+    renderAll();
+  } catch(e){ err.textContent='儲存失敗：'+e.message; }
+}
+
+function lotSells(l){ return sells.filter(s=>s.lot_id===l.id); }
+function lotSoldQty(l){ return lotSells(l).reduce((s,t)=>s+Number(t.qty),0); }
+function lotRem(l){ return Number(l.qty)-lotSoldQty(l); }
+function lotRecovered(l){ return lotSells(l).reduce((s,t)=>s+Number(t.qty)*Number(t.price)-Number(t.fee),0); }
+function lotCost(l){ return Number(l.qty)*Number(l.price)+Number(l.fee); }
+function lotPnL(l){
+  const avg=lotCost(l)/Number(l.qty);
+  return lotSells(l).reduce((s,t)=>s+(Number(t.price)-avg)*Number(t.qty)-Number(t.fee),0);
+}
+function lotStatus(l){
+  const rem=lotRem(l);
+  if(rem<=0.000001) return {label:'已平倉',cls:'b-closed'};
+  if(lotSoldQty(l)>0.000001) return {label:'部分賣出',cls:'b-partial'};
+  return {label:'持倉中',cls:'b-open'};
+}
+
+function switchTab(t,el){
+  tab=t;
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active'); renderAll();
+}
+
+function renderStats(){
+  const coins=tab==='all'?['ETH','SOL']:[tab];
+  let html='';
+  for(const coin of coins){
+    const ls=lots.filter(l=>l.coin===coin);
+    if(!ls.length) continue;
+    for(const cur of ['TWD','USD']){
+      const cl=ls.filter(l=>l.currency===cur);
+      if(!cl.length) continue;
+      const holding=cl.reduce((s,l)=>s+lotRem(l),0);
+      const cost=cl.reduce((s,l)=>s+lotCost(l),0);
+      const recovered=cl.reduce((s,l)=>s+lotRecovered(l),0);
+      const pnl=cl.reduce((s,l)=>s+lotPnL(l),0);
+      const pc=pnl>=0?'pnl-pos':'pnl-neg';
+      const sign=pnl>=0?'+':'';
+      html+=`<div class="stat-card">
+        <div class="stat-top">
+          <span class="stat-coin-badge ${coin.toLowerCase()}">${coin}</span>
+          <span class="stat-cur">${cur}</span>
+        </div>
+        <div class="stat-holding">${fmt(holding,4)}<span class="unit">${coin}</span></div>
+        <div class="stat-row"><span>總成本</span><span class="val">${sym(cur)}${fmt(cost)}</span></div>
+        <div class="stat-row"><span>已回收</span><span class="val">${sym(cur)}${fmt(recovered)}</span></div>
+        <div class="stat-row"><span>已實現損益</span><span class="val ${pc}">${sign}${sym(cur)}${fmt(Math.abs(pnl))}</span></div>
+      </div>`;
+    }
+  }
+  if(!html) html='<div class="stat-card"><div class="stat-top"><span class="stat-coin-badge eth">—</span></div><div class="stat-holding" style="color:var(--text3);font-size:16px">尚無資料</div></div>';
+  document.getElementById('stats-grid').innerHTML=html;
+}
+
+function renderLots(){
+  const fl=lots.filter(l=>tab==='all'||l.coin===tab);
+  const tbody=document.getElementById('lots-tbody');
+  const empty=document.getElementById('lots-empty');
+  if(!fl.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=fl.map(l=>{
+    const cost=lotCost(l), sold=lotSoldQty(l), rem=lotRem(l), recovered=lotRecovered(l);
+    const pct=Math.min(100,sold/Number(l.qty)*100).toFixed(0);
+    const st=lotStatus(l), pnl=lotPnL(l);
+    const pnlHtml=sold>0.000001?`<span class="${pnl>=0?'pnl-pos':'pnl-neg'}">${pnl>=0?'+':''}${sym(l.currency)}${fmt(Math.abs(pnl))}</span>`:'—';
+    const holdCost=rem>0.000001?cost*(rem/Number(l.qty))-recovered:0;
+    const holdHtml=rem>0.000001?(holdCost<=0?'<span class="zero-cost">零成本底倉</span>':`${sym(l.currency)}${fmt(holdCost)}`):'—';
+    return `<tr>
+      <td>${l.date}</td>
+      <td><span class="badge b-${l.coin.toLowerCase()}">${l.coin}</span></td>
+      <td class="mono">${fmt(l.qty,4)}</td>
+      <td class="mono">${sym(l.currency)}${fmt(l.price)}</td>
+      <td class="muted">${l.currency}</td>
+      <td class="mono">${sym(l.currency)}${fmt(cost)}</td>
+      <td><div class="progress-row"><div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div><span class="muted" style="font-size:13px;font-family:var(--mono)">${fmt(sold,4)}</span></div></td>
+      <td class="mono" style="font-weight:500">${fmt(rem,4)}</td>
+      <td class="mono muted">${recovered>0?sym(l.currency)+fmt(recovered):'—'}</td>
+      <td>${holdHtml}</td>
+      <td><span class="badge ${st.cls}">${st.label}</span></td>
+      <td class="dim">${l.note||'—'}</td>
+      <td><button class="btn-del" onclick="deleteLot(${l.id})">刪除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSells(){
+  const fl=sells.filter(s=>tab==='all'||s.coin===tab);
+  const tbody=document.getElementById('sells-tbody');
+  const empty=document.getElementById('sells-empty');
+  if(!fl.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  tbody.innerHTML=fl.map(s=>{
+    const lot=lots.find(l=>l.id===s.lot_id);
+    const lotLabel=lot?`${lot.date} @ ${sym(lot.currency)}${fmt(lot.price)}`:'(已刪除)';
+    const revenue=Number(s.qty)*Number(s.price)-Number(s.fee);
+    let pnlHtml='—';
+    if(lot){
+      const avg=lotCost(lot)/Number(lot.qty);
+      const pnl=(Number(s.price)-avg)*Number(s.qty)-Number(s.fee);
+      pnlHtml=`<span class="${pnl>=0?'pnl-pos':'pnl-neg'}">${pnl>=0?'+':''}${sym(s.currency||'TWD')}${fmt(Math.abs(pnl))}</span>`;
+    }
+    return `<tr>
+      <td>${s.date}</td>
+      <td class="muted" style="font-size:13px">${lotLabel}</td>
+      <td><span class="badge b-${(s.coin||'eth').toLowerCase()}">${s.coin||'—'}</span></td>
+      <td class="mono">${fmt(s.qty,4)}</td>
+      <td class="mono">${sym(s.currency||'TWD')}${fmt(s.price)}</td>
+      <td class="muted">${s.currency||'TWD'}</td>
+      <td class="mono muted">${Number(s.fee)>0?sym(s.currency||'TWD')+fmt(s.fee):'—'}</td>
+      <td class="mono" style="font-weight:500">${sym(s.currency||'TWD')}${fmt(revenue)}</td>
+      <td>${pnlHtml}</td>
+      <td class="dim">${s.note||'—'}</td>
+      <td><button class="btn-del" onclick="deleteSell(${s.id})">刪除</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll(){ renderStats(); renderLots(); renderSells(); }
+loadAll();
+</script>
+</body>
+</html>
