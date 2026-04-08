@@ -176,10 +176,10 @@ td.dim { color: var(--text3); font-size: 12px; max-width: 120px; overflow: hidde
     <div class="form-grid">
       <div class="fg"><label>日期</label><input type="date" id="b-date"></div>
       <div class="fg"><label>幣種</label><select id="b-coin"><option>ETH</option><option>SOL</option></select></div>
-      <div class="fg"><label>買入數量</label><input type="number" id="b-qty" placeholder="0.0000" step="any" min="0"></div>
+      <div class="fg"><label>買入數量</label><input type="number" id="b-qty" placeholder="0.0000" step="any" min="0" oninput="calcUnitPrice()"></div>
       <div class="fg"><label>幣別</label><select id="b-cur"><option>TWD</option><option>USD</option></select></div>
-      <div class="fg"><label>買入單價</label><input type="number" id="b-price" placeholder="0.00" step="any" min="0"></div>
-      <div class="fg"><label>手續費</label><input type="number" id="b-fee" placeholder="0" value="0" step="any" min="0"></div>
+      <div class="fg"><label>買入總價</label><input type="number" id="b-total" placeholder="0.00" step="any" min="0" oninput="calcUnitPrice()"></div>
+      <div class="fg"><label>買入單價（自動）</label><input type="number" id="b-price" placeholder="—" step="any" min="0" readonly style="background:var(--bg3);color:var(--text2)"></div>
     </div>
     <div class="form-actions">
       <div class="fg"><label>備註</label><input type="text" id="b-note" placeholder="選填"></div>
@@ -196,8 +196,8 @@ td.dim { color: var(--text3); font-size: 12px; max-width: 120px; overflow: hidde
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>日期</th><th>幣種</th><th>買入量</th><th>單價</th><th>幣別</th>
-          <th>總成本</th><th>已賣出</th><th>剩餘持倉</th><th>已回收</th><th>底倉成本</th><th>狀態</th><th>備註</th><th></th>
+          <th>日期</th><th>幣種</th><th>買入量</th><th>買入總價</th><th>買入單價</th><th>幣別</th>
+          <th>已賣出</th><th>剩餘持倉</th><th>已回收</th><th>底倉成本</th><th>狀態</th><th>備註</th><th></th>
         </tr></thead>
         <tbody id="lots-tbody"></tbody>
       </table>
@@ -210,7 +210,7 @@ td.dim { color: var(--text3); font-size: 12px; max-width: 120px; overflow: hidde
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>日期</th><th>對應批次</th><th>幣種</th><th>賣出量</th><th>賣出價</th><th>幣別</th><th>手續費</th><th>回收金額</th><th>損益</th><th>備註</th><th></th>
+          <th>日期</th><th>對應批次</th><th>幣種</th><th>賣出量</th><th>賣出價</th><th>幣別</th><th>回收金額</th><th>損益</th><th>備註</th><th></th>
         </tr></thead>
         <tbody id="sells-tbody"></tbody>
       </table>
@@ -230,7 +230,7 @@ td.dim { color: var(--text3); font-size: 12px; max-width: 120px; overflow: hidde
       <div class="fg"><label>日期</label><input type="date" id="s-date"></div>
       <div class="fg"><label>賣出數量</label><input type="number" id="s-qty" placeholder="0.0000" step="any"></div>
       <div class="fg"><label>賣出單價</label><input type="number" id="s-price" placeholder="0.00" step="any"></div>
-      <div class="fg"><label>手續費</label><input type="number" id="s-fee" placeholder="0" value="0" step="any"></div>
+
     </div>
     <div class="fg" style="margin-top:10px"><label>備註</label><input type="text" id="s-note" placeholder="選填"></div>
     <div class="err" id="s-err"></div>
@@ -288,25 +288,32 @@ async function loadAll(){
   } catch(e){ setConn('err'); toast('連線失敗：'+e.message,'fail'); }
 }
 
+function calcUnitPrice(){
+  const qty=parseFloat(document.getElementById('b-qty').value);
+  const total=parseFloat(document.getElementById('b-total').value);
+  const priceEl=document.getElementById('b-price');
+  if(qty>0&&total>0){ priceEl.value=(total/qty).toFixed(4); }
+  else { priceEl.value=''; }
+}
+
 async function addLot(){
   const err=document.getElementById('b-err');
   const date=document.getElementById('b-date').value;
   const coin=document.getElementById('b-coin').value;
   const qty=parseFloat(document.getElementById('b-qty').value);
   const currency=document.getElementById('b-cur').value;
-  const price=parseFloat(document.getElementById('b-price').value);
-  const fee=parseFloat(document.getElementById('b-fee').value)||0;
+  const total=parseFloat(document.getElementById('b-total').value);
   const note=document.getElementById('b-note').value.trim();
   if(!date){err.textContent='請填寫日期';return;}
   if(!qty||qty<=0){err.textContent='請填寫有效數量';return;}
-  if(!price||price<=0){err.textContent='請填寫有效單價';return;}
+  if(!total||total<=0){err.textContent='請填寫有效買入總價';return;}
+  const price=total/qty;
   err.textContent='';
   try {
     toast('儲存中…','');
-    const res=await sb('POST','lots',{id:Date.now(),date,coin,qty,currency,price,fee,note});
+    const res=await sb('POST','lots',{id:Date.now(),date,coin,qty,currency,price,fee:0,note});
     lots=[res[0],...lots].sort((a,b)=>b.date.localeCompare(a.date));
-    ['b-qty','b-price','b-note'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('b-fee').value='0';
+    ['b-qty','b-total','b-price','b-note'].forEach(id=>document.getElementById(id).value='');
     toast('✓ 批次已儲存');
     renderAll();
   } catch(e){ err.textContent='儲存失敗：'+e.message; }
@@ -337,7 +344,7 @@ function showSellModal(){
   selLotId=null;
   document.getElementById('s-date').value=new Date().toISOString().slice(0,10);
   ['s-qty','s-price','s-note'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('s-fee').value='0';
+
   document.getElementById('s-err').textContent='';
   const vis=lots.filter(l=>tab==='all'||l.coin===tab).filter(l=>lotRem(l)>0.000001);
   const lst=document.getElementById('lot-list');
@@ -368,7 +375,7 @@ async function addSell(){
   const date=document.getElementById('s-date').value;
   const qty=parseFloat(document.getElementById('s-qty').value);
   const price=parseFloat(document.getElementById('s-price').value);
-  const fee=parseFloat(document.getElementById('s-fee').value)||0;
+  const fee=0;
   const note=document.getElementById('s-note').value.trim();
   if(!date){err.textContent='請填寫日期';return;}
   if(!qty||qty<=0){err.textContent='請填寫有效數量';return;}
@@ -456,9 +463,9 @@ function renderLots(){
       <td>${l.date}</td>
       <td><span class="badge b-${l.coin.toLowerCase()}">${l.coin}</span></td>
       <td class="mono">${fmt(l.qty,4)}</td>
-      <td class="mono">${sym(l.currency)}${fmt(l.price)}</td>
-      <td class="muted">${l.currency}</td>
       <td class="mono">${sym(l.currency)}${fmt(cost)}</td>
+      <td class="mono muted">${sym(l.currency)}${fmt(l.price)}</td>
+      <td class="muted">${l.currency}</td>
       <td><div class="progress-row"><div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div><span class="muted" style="font-size:13px;font-family:var(--mono)">${fmt(sold,4)}</span></div></td>
       <td class="mono" style="font-weight:500">${fmt(rem,4)}</td>
       <td class="mono muted">${recovered>0?sym(l.currency)+fmt(recovered):'—'}</td>
@@ -492,8 +499,7 @@ function renderSells(){
       <td><span class="badge b-${(s.coin||'eth').toLowerCase()}">${s.coin||'—'}</span></td>
       <td class="mono">${fmt(s.qty,4)}</td>
       <td class="mono">${sym(s.currency||'TWD')}${fmt(s.price)}</td>
-      <td class="muted">${s.currency||'TWD'}</td>
-      <td class="mono muted">${Number(s.fee)>0?sym(s.currency||'TWD')+fmt(s.fee):'—'}</td>
+      <td class="mono muted">${s.currency||'TWD'}</td>
       <td class="mono" style="font-weight:500">${sym(s.currency||'TWD')}${fmt(revenue)}</td>
       <td>${pnlHtml}</td>
       <td class="dim">${s.note||'—'}</td>
